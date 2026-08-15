@@ -71,3 +71,51 @@ Google Gemini API
   │
   ▼
 Structured Tasks
+
+# 🛠️ Tech Stack
+
+### 🎨 Frontend
+
+- React.js
+- Vite
+- JavaScript (ES6+)
+- CSS3
+- React Router
+- Web Speech API
+- Supabase JavaScript Client
+
+### ⚙️ Backend
+
+- Python
+- FastAPI
+- Uvicorn
+- Python-dotenv
+- REST API
+
+### 🧠 AI / NLP
+
+- Google Gemini API
+- Natural Language Processing
+- AI-powered task extraction
+- Natural-language time and reminder detection
+
+### 🔐 Authentication & Database
+
+- Supabase Authentication
+- Supabase PostgreSQL Database
+- Row Level Security (RLS)
+- User-specific data storage
+
+### 🔧 Development & Version Control
+
+- Git
+- GitHub
+- VS Code
+- npm
+- Python Virtual Environment
+
+### 🚀 Deployment
+
+- Vercel — Frontend
+- Render — Backend
+- Supabase — Authentication & Database
