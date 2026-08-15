@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+
+# Frontend dependencies
+frontend/node_modules/
+
+# Backend virtual environment
+backend/venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build folders
+frontend/dist/
+frontend/build/
+
+# VS Code optional
+.vscode/
+
+# Misc
+*.log
