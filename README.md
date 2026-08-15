@@ -1,60 +1,73 @@
 # Voice2Task 🎙️✨
 
-Voice2Task is an AI-powered productivity web application that converts live voice notes into structured to-do tasks with real-time speech recognition, task extraction, and reminder detection.
+> Speak once. Plan everything.
 
-It is designed to help users quickly capture spoken thoughts and transform them into an actionable task list through a clean and aesthetic interface.
+Voice2Task is an AI-powered productivity web application that converts natural voice input into structured tasks, schedules, and reminders.
 
----
+Instead of manually writing down everything you need to do, simply speak naturally. Voice2Task processes the transcript using AI, identifies actionable tasks and associated times, and organizes them into a clean smart to-do list.
 
-## 🚀 Features
-
-- 🎤 Real-time voice recording in the browser
-- 📝 Live speech-to-text transcription
-- ✅ Smart task extraction from spoken input
-- ⏰ Time-based reminder detection
-- 📋 Interactive to-do list with completion tracking
-- 🎨 Modern dark-themed UI with premium aesthetic styling
-- ⚡ Fast frontend-backend communication using React + FastAPI
+The application also uses Supabase authentication and database storage so each user's tasks and productivity data can be persisted securely.
 
 ---
 
-## 📸 Screenshots
+## ✨ Features
 
-### 1. Landing / Main Screen
-![Landing Screen](./screenshots/landing_page.png)
+### 🎙️ Voice Capture
+Record your thoughts, plans, and reminders using natural voice input.
 
-### 2. Live Recording in Progress
-![Recording Screen](./screenshots/app_screen.png)
+### 📝 Live Transcript
+Convert spoken input into readable text before task extraction.
 
-### 3. Extracted Tasks Output
-![Tasks Output](./screenshots/final_page.png)
+### 🧠 AI Task Extraction
+The AI analyzes the transcript and identifies actionable tasks from natural language.
 
----
+### ⏰ Intelligent Time Detection
+Detects time information such as:
 
-## 🛠️ Tech Stack
+- 5 PM
+- 7:30 PM
+- tomorrow morning
+- from 5 to 6 PM
+- at 9 PM
 
-### Frontend
-- React.js
-- CSS3
-- Web Speech API / Browser Speech Recognition
+and associates detected times with the relevant tasks.
 
-### Backend
-- FastAPI
-- Python
-- Regex-based task parsing logic
-- Uvicorn
+### ✅ Smart To-Do List
+Extracted tasks are displayed as structured to-do items with:
 
----
+- Task name
+- Time
+- Completion status
+- Pending status
 
-## ⚙️ Project Structure
+### 🔐 User Authentication
+Users can create an account and sign in using Supabase Authentication.
+
+### 🗄️ Persistent Database Storage
+Tasks and user-related productivity data are stored in Supabase so that data is not lost when the page is refreshed or reopened.
+
+### 👤 User-Specific Data
+Each authenticated user can access their own tasks and productivity data.
+
+### 🌐 Full-Stack Architecture
+
+The application follows a modern frontend-backend architecture:
 
 ```text
-voice2task/
-├── frontend/
-├── backend/
-├── screenshots/
-│   ├── landing_page.png
-│   ├── app_screen.png
-│   └── final_page.png
-├── README.md
-└── .gitignore
+User
+  │
+  ▼
+React + Vite Frontend
+  │
+  ├──────────────► Supabase Auth
+  │
+  ├──────────────► Supabase Database
+  │
+  ▼
+FastAPI Backend
+  │
+  ▼
+Google Gemini API
+  │
+  ▼
+Structured Tasks
