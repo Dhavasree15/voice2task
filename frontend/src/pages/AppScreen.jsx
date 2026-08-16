@@ -10,17 +10,31 @@ import { useNavigate } from "react-router-dom";
 import "./AppScreen.css";
 
 
-function AppScreen({ user, onResult }) {
+// ============================================================
+// APP SCREEN
+// ============================================================
 
-  const navigate = useNavigate();
+function AppScreen({
+  user,
+  tasks: savedTasks = [],
+  latestResult,
+  onResult,
+  onTaskToggle,
+}) {
 
-  const recognitionRef = useRef(null);
+  const navigate =
+    useNavigate();
 
-  const timerIntervalRef = useRef(null);
+
+  const recognitionRef =
+    useRef(null);
+
+  const timerIntervalRef =
+    useRef(null);
 
 
   // ==========================================================
-  // DEFAULT VALUES
+  // DEFAULT
   // ==========================================================
 
   const DEFAULT_TRANSCRIPT =
@@ -38,13 +52,21 @@ function AppScreen({ user, onResult }) {
     useState(0);
 
   const [transcript, setTranscript] =
-    useState(DEFAULT_TRANSCRIPT);
+    useState(
+      latestResult?.transcript ||
+      DEFAULT_TRANSCRIPT
+    );
 
   const [tasks, setTasks] =
-    useState([]);
+    useState(
+      savedTasks || []
+    );
 
   const [detectedReminder, setDetectedReminder] =
-    useState("No reminder detected");
+    useState(
+      latestResult?.reminder ||
+      "No reminder detected"
+    );
 
   const [isSpeechSupported, setIsSpeechSupported] =
     useState(true);
@@ -54,614 +76,725 @@ function AppScreen({ user, onResult }) {
 
 
   // ==========================================================
-  // TASK COUNTS
+  // LOAD SAVED TASKS
   // ==========================================================
 
-  const totalTasks = tasks.length;
+  useEffect(() => {
+
+    if (
+      Array.isArray(savedTasks)
+    ) {
+
+      setTasks(
+        savedTasks
+      );
+
+    }
+
+  }, [savedTasks]);
 
 
-  const completedTasks = useMemo(
-    () =>
-      tasks.filter(
-        (task) => task.done
-      ).length,
-    [tasks]
-  );
+  // ==========================================================
+  // SYNC LATEST RESULT
+  // ==========================================================
+
+  useEffect(() => {
+
+    if (
+      latestResult?.transcript
+    ) {
+
+      setTranscript(
+        latestResult.transcript
+      );
+
+    }
+
+
+    if (
+      latestResult?.reminder
+    ) {
+
+      setDetectedReminder(
+        latestResult.reminder
+      );
+
+    }
+
+
+    if (
+      Array.isArray(
+        latestResult?.tasks
+      ) &&
+      latestResult.tasks.length > 0
+    ) {
+
+      setTasks(
+        latestResult.tasks
+      );
+
+    }
+
+  }, [latestResult]);
+
+
+  // ==========================================================
+  // COUNTS
+  // ==========================================================
+
+  const totalTasks =
+    tasks.length;
+
+
+  const completedTasks =
+    useMemo(
+      () =>
+        tasks.filter(
+          task =>
+            Boolean(
+              task.done
+            )
+        ).length,
+      [tasks]
+    );
 
 
   const pendingTasks =
-    totalTasks - completedTasks;
-
-
-  // ==========================================================
-  // FORMAT TIMER
-  // ==========================================================
-
-  const formatTime = (totalSeconds) => {
-
-    const mins = String(
-      Math.floor(totalSeconds / 60)
-    ).padStart(2, "0");
-
-
-    const secs = String(
-      totalSeconds % 60
-    ).padStart(2, "0");
-
-
-    return `${mins}:${secs}`;
-  };
+    totalTasks -
+    completedTasks;
 
 
   // ==========================================================
   // TIMER
   // ==========================================================
 
-  const stopTimer = () => {
+  const formatTime =
+    totalSeconds => {
 
-    if (timerIntervalRef.current) {
-
-      clearInterval(
-        timerIntervalRef.current
-      );
-
-      timerIntervalRef.current = null;
-    }
-  };
-
-
-  const startTimer = () => {
-
-    stopTimer();
-
-
-    timerIntervalRef.current =
-      setInterval(() => {
-
-        setSeconds(
-          (previous) =>
-            previous + 1
+      const mins =
+        String(
+          Math.floor(
+            totalSeconds / 60
+          )
+        ).padStart(
+          2,
+          "0"
         );
 
-      }, 1000);
-  };
+
+      const secs =
+        String(
+          totalSeconds % 60
+        ).padStart(
+          2,
+          "0"
+        );
+
+
+      return `${mins}:${secs}`;
+
+    };
+
+
+  const stopTimer =
+    () => {
+
+      if (
+        timerIntervalRef.current
+      ) {
+
+        clearInterval(
+          timerIntervalRef.current
+        );
+
+        timerIntervalRef.current =
+          null;
+
+      }
+
+    };
+
+
+  const startTimer =
+    () => {
+
+      stopTimer();
+
+
+      timerIntervalRef.current =
+        setInterval(
+          () => {
+
+            setSeconds(
+              previous =>
+                previous + 1
+            );
+
+          },
+          1000
+        );
+
+    };
 
 
   // ==========================================================
   // START RECORDING
   // ==========================================================
 
-  const handleStartRecording = () => {
+  const handleStartRecording =
+    () => {
 
-    const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
-
-
-    if (!SpeechRecognition) {
-
-      setIsSpeechSupported(false);
-
-      alert(
-        "Live speech recognition is not supported in this browser. Please use Chrome."
-      );
-
-      return;
-    }
+      const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
 
-    // Stop previous recognition if one exists.
+      if (!SpeechRecognition) {
 
-    if (recognitionRef.current) {
+        setIsSpeechSupported(
+          false
+        );
+
+
+        alert(
+          "Live speech recognition is not supported in this browser. Please use Chrome."
+        );
+
+
+        return;
+
+      }
+
 
       try {
 
-        recognitionRef.current.stop();
+        if (
+          recognitionRef.current
+        ) {
+
+          try {
+
+            recognitionRef.current.stop();
+
+          } catch {}
+
+        }
+
+
+        const recognition =
+          new SpeechRecognition();
+
+
+        recognitionRef.current =
+          recognition;
+
+
+        recognition.continuous =
+          true;
+
+        recognition.interimResults =
+          true;
+
+        recognition.lang =
+          "en-US";
+
+
+        let finalTranscript =
+          "";
+
+
+        recognition.onstart =
+          () => {
+
+            setIsRecording(
+              true
+            );
+
+            setSeconds(
+              0
+            );
+
+            setTranscript(
+              "Listening... speak now 🎙️"
+            );
+
+            startTimer();
+
+          };
+
+
+        recognition.onresult =
+          event => {
+
+            let interimTranscript =
+              "";
+
+            let updatedFinal =
+              finalTranscript;
+
+
+            for (
+              let i =
+                event.resultIndex;
+              i <
+                event.results.length;
+              i++
+            ) {
+
+              const text =
+                event.results[i][0]
+                  .transcript;
+
+
+              if (
+                event.results[i]
+                  .isFinal
+              ) {
+
+                updatedFinal +=
+                  text + " ";
+
+              } else {
+
+                interimTranscript +=
+                  text;
+
+              }
+
+            }
+
+
+            finalTranscript =
+              updatedFinal;
+
+
+            const combined =
+              (
+                updatedFinal +
+                interimTranscript
+              ).trim();
+
+
+            setTranscript(
+              combined ||
+              "Listening... speak now 🎙️"
+            );
+
+          };
+
+
+        recognition.onerror =
+          event => {
+
+            console.error(
+              "Speech recognition error:",
+              event.error
+            );
+
+
+            if (
+              event.error !==
+              "aborted"
+            ) {
+
+              alert(
+                `Speech recognition error: ${event.error}`
+              );
+
+            }
+
+
+            setIsRecording(
+              false
+            );
+
+            stopTimer();
+
+          };
+
+
+        recognition.onend =
+          () => {
+
+            setIsRecording(
+              false
+            );
+
+            stopTimer();
+
+          };
+
+
+        recognition.start();
 
       } catch (error) {
 
-        console.log(
-          "Old recognition cleanup skipped:",
+        console.error(
+          "Could not start speech recognition:",
           error
         );
 
+
+        alert(
+          "Could not start live speech recognition."
+        );
+
       }
-    }
 
-
-    try {
-
-      const recognition =
-        new SpeechRecognition();
-
-
-      recognitionRef.current =
-        recognition;
-
-
-      recognition.continuous = true;
-
-      recognition.interimResults = true;
-
-      recognition.lang = "en-US";
-
-
-      let finalTranscript = "";
-
-
-      // ------------------------------------------------------
-      // RECOGNITION START
-      // ------------------------------------------------------
-
-      recognition.onstart = () => {
-
-        setIsRecording(true);
-
-        setSeconds(0);
-
-        setTasks([]);
-
-        setDetectedReminder(
-          "No reminder detected"
-        );
-
-        setTranscript(
-          "Listening... speak now 🎙️"
-        );
-
-        startTimer();
-      };
-
-
-      // ------------------------------------------------------
-      // SPEECH RESULT
-      // ------------------------------------------------------
-
-      recognition.onresult = (event) => {
-
-        let interimTranscript = "";
-
-        let updatedFinalTranscript =
-          finalTranscript;
-
-
-        for (
-          let i = event.resultIndex;
-          i < event.results.length;
-          i++
-        ) {
-
-          const text =
-            event.results[i][0].transcript;
-
-
-          if (
-            event.results[i].isFinal
-          ) {
-
-            updatedFinalTranscript +=
-              text + " ";
-
-          } else {
-
-            interimTranscript += text;
-
-          }
-        }
-
-
-        finalTranscript =
-          updatedFinalTranscript;
-
-
-        const combinedText =
-          (
-            updatedFinalTranscript +
-            interimTranscript
-          ).trim();
-
-
-        setTranscript(
-          combinedText ||
-            "Listening... speak now 🎙️"
-        );
-      };
-
-
-      // ------------------------------------------------------
-      // SPEECH ERROR
-      // ------------------------------------------------------
-
-      recognition.onerror = (event) => {
-
-        console.error(
-          "Speech recognition error:",
-          event.error
-        );
-
-
-        if (
-          event.error !== "aborted"
-        ) {
-
-          alert(
-            `Speech recognition error: ${event.error}`
-          );
-
-        }
-
-
-        setIsRecording(false);
-
-        stopTimer();
-      };
-
-
-      // ------------------------------------------------------
-      // SPEECH END
-      // ------------------------------------------------------
-
-      recognition.onend = () => {
-
-        setIsRecording(false);
-
-        stopTimer();
-      };
-
-
-      recognition.start();
-
-    } catch (error) {
-
-      console.error(
-        "Speech recognition start failed:",
-        error
-      );
-
-      alert(
-        "Could not start live speech recognition."
-      );
-
-      setIsRecording(false);
-
-      stopTimer();
-    }
-  };
+    };
 
 
   // ==========================================================
   // STOP RECORDING
   // ==========================================================
 
-  const handleStopRecording = () => {
+  const handleStopRecording =
+    () => {
 
-    if (recognitionRef.current) {
+      if (
+        recognitionRef.current
+      ) {
 
-      try {
+        try {
 
-        recognitionRef.current.stop();
+          recognitionRef.current.stop();
 
-      } catch (error) {
+        } catch {}
 
-        console.log(
-          "Stop recording issue:",
-          error
-        );
       }
-    }
 
 
-    stopTimer();
+      stopTimer();
 
-    setIsRecording(false);
-  };
+
+      setIsRecording(
+        false
+      );
+
+    };
 
 
   // ==========================================================
   // RECORDING TOGGLE
   // ==========================================================
 
-  const handleRecordingToggle = () => {
+  const handleRecordingToggle =
+    () => {
 
-    if (isRecording) {
+      if (isRecording) {
 
-      handleStopRecording();
+        handleStopRecording();
 
-    } else {
+      } else {
 
-      handleStartRecording();
+        handleStartRecording();
 
-    }
-  };
-
-
-  // ==========================================================
-  // RESET
-  // ==========================================================
-
-  const handleReset = () => {
-
-    if (recognitionRef.current) {
-
-      try {
-
-        recognitionRef.current.stop();
-
-      } catch (error) {
-
-        console.log(
-          "Recognition reset stop skipped:",
-          error
-        );
       }
-    }
+
+    };
 
 
-    stopTimer();
+  // ==========================================================
+  // RESET CURRENT RECORDING
+  // ==========================================================
+
+  const handleReset =
+    () => {
+
+      if (
+        recognitionRef.current
+      ) {
+
+        try {
+
+          recognitionRef.current.stop();
+
+        } catch {}
+
+      }
 
 
-    setIsRecording(false);
-
-    setSeconds(0);
-
-    setTranscript(
-      DEFAULT_TRANSCRIPT
-    );
-
-    setTasks([]);
-
-    setDetectedReminder(
-      "No reminder detected"
-    );
-
-    setIsExtracting(false);
+      stopTimer();
 
 
-    // Clear landing page result too.
+      setIsRecording(
+        false
+      );
 
-    if (onResult) {
-      onResult(null);
-    }
-  };
+      setSeconds(
+        0
+      );
+
+      setTranscript(
+        DEFAULT_TRANSCRIPT
+      );
+
+      setDetectedReminder(
+        "No reminder detected"
+      );
+
+    };
 
 
   // ==========================================================
   // EXTRACT TASKS
   // ==========================================================
 
-  const handleExtract = async () => {
+  const handleExtract =
+    async () => {
 
-    const cleanTranscript =
-      transcript.trim();
-
-
-    // --------------------------------------------------------
-    // VALIDATION
-    // --------------------------------------------------------
-
-    if (
-      !cleanTranscript ||
-      cleanTranscript ===
-        DEFAULT_TRANSCRIPT ||
-      cleanTranscript ===
-        "Listening... speak now 🎙️"
-    ) {
-
-      alert(
-        "Please record something first before extracting tasks."
-      );
-
-      return;
-    }
+      const cleanTranscript =
+        transcript.trim();
 
 
-    try {
+      if (
+        !cleanTranscript ||
+        cleanTranscript ===
+          DEFAULT_TRANSCRIPT ||
+        cleanTranscript ===
+          "Listening... speak now 🎙️"
+      ) {
 
-      setIsExtracting(true);
+        alert(
+          "Please record something first before extracting tasks."
+        );
+
+        return;
+
+      }
 
 
-      // ------------------------------------------------------
-      // BACKEND URL
-      // ------------------------------------------------------
+      try {
 
-      const apiUrl =
-        import.meta.env.VITE_API_URL ||
-        "https://voice2task-backend.onrender.com";
+        setIsExtracting(
+          true
+        );
 
 
-      // ------------------------------------------------------
-      // CALL FASTAPI
-      // ------------------------------------------------------
+        const apiUrl =
+          import.meta.env.VITE_API_URL ||
+          "https://voice2task-backend.onrender.com";
 
-      const response =
-        await fetch(
-          `${apiUrl}/extract-tasks`,
-          {
-            method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+        const response =
+          await fetch(
+            `${apiUrl}/extract-tasks`,
+            {
+              method: "POST",
 
-            body: JSON.stringify({
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                transcript:
+                  cleanTranscript,
+              }),
+
+            }
+          );
+
+
+        if (!response.ok) {
+
+          const errorText =
+            await response.text();
+
+
+          throw new Error(
+            `Backend returned ${response.status}: ${errorText}`
+          );
+
+        }
+
+
+        const data =
+          await response.json();
+
+
+        console.log(
+          "Backend result:",
+          data
+        );
+
+
+        const extractedTasks =
+          Array.isArray(
+            data.tasks
+          )
+            ? data.tasks.map(
+                task => ({
+                  text:
+                    task.text ||
+                    task.title ||
+                    "Untitled task",
+
+                  time:
+                    task.time ||
+                    "",
+
+                  start_time:
+                    task.start_time ||
+                    task.time ||
+                    "",
+
+                  end_time:
+                    task.end_time ||
+                    "",
+
+                  done:
+                    Boolean(
+                      task.done
+                    ),
+                })
+              )
+            : [];
+
+
+        const reminder =
+          data.reminder ||
+          "No reminder detected";
+
+
+        // ----------------------------------------------------
+        // SHOW IMMEDIATELY
+        // ----------------------------------------------------
+
+        setTasks(
+          extractedTasks
+        );
+
+
+        setDetectedReminder(
+          reminder
+        );
+
+
+        // ----------------------------------------------------
+        // SAVE TO APP.JSX / SUPABASE
+        // ----------------------------------------------------
+
+        if (onResult) {
+
+          const savedTasks =
+            await onResult({
+
               transcript:
                 cleanTranscript,
-            }),
+
+              tasks:
+                extractedTasks,
+
+              reminder:
+                reminder,
+
+            });
+
+
+          // --------------------------------------------------
+          // Use database-generated IDs if available
+          // --------------------------------------------------
+
+          if (
+            Array.isArray(
+              savedTasks
+            ) &&
+            savedTasks.length > 0
+          ) {
+
+            setTasks(
+              savedTasks
+            );
+
           }
+
+        }
+
+
+      } catch (error) {
+
+        console.error(
+          "Error extracting tasks:",
+          error
         );
 
 
-      // ------------------------------------------------------
-      // HTTP ERROR
-      // ------------------------------------------------------
-
-      if (!response.ok) {
-
-        const errorText =
-          await response.text();
-
-        throw new Error(
-          `Backend returned ${response.status}: ${errorText}`
+        alert(
+          `Backend connection failed.\n\n${error.message}`
         );
+
+      } finally {
+
+        setIsExtracting(
+          false
+        );
+
       }
 
-
-      // ------------------------------------------------------
-      // RESPONSE
-      // ------------------------------------------------------
-
-      const data =
-        await response.json();
-
-
-      console.log(
-        "Backend extraction result:",
-        data
-      );
-
-
-      // ------------------------------------------------------
-      // NORMALIZE TASKS
-      // ------------------------------------------------------
-
-      const extractedTasks =
-        Array.isArray(data.tasks)
-          ? data.tasks.map(
-              (task) => ({
-                text:
-                  task.text ||
-                  task.title ||
-                  "Untitled task",
-
-                time:
-                  task.time ||
-                  "",
-
-                done:
-                  Boolean(
-                    task.done
-                  ),
-              })
-            )
-          : [];
-
-
-      const reminder =
-        data.reminder ||
-        "No reminder detected";
-
-
-      // ------------------------------------------------------
-      // UPDATE APP SCREEN
-      // ------------------------------------------------------
-
-      setTasks(
-        extractedTasks
-      );
-
-      setDetectedReminder(
-        reminder
-      );
-
-
-      // ------------------------------------------------------
-      // SEND REAL DATA TO APP.JSX
-      // ------------------------------------------------------
-
-      if (onResult) {
-
-        onResult({
-
-          transcript:
-            cleanTranscript,
-
-          tasks:
-            extractedTasks,
-
-          reminder:
-            reminder,
-
-        });
-      }
-
-
-    } catch (error) {
-
-      console.error(
-        "Error extracting tasks:",
-        error
-      );
-
-
-      alert(
-        `Backend connection failed.\n\n${error.message}`
-      );
-
-
-      setTasks([]);
-
-      setDetectedReminder(
-        "No reminder detected"
-      );
-
-
-      if (onResult) {
-        onResult(null);
-      }
-
-    } finally {
-
-      setIsExtracting(false);
-
-    }
-  };
+    };
 
 
   // ==========================================================
   // TOGGLE TASK
   // ==========================================================
 
-  const toggleTask = (index) => {
+  const toggleTask =
+    async (
+      task,
+      index
+    ) => {
 
-    const updatedTasks =
-      [...tasks];
+      const newCompleted =
+        !task.done;
 
 
-    updatedTasks[index] = {
-      ...updatedTasks[index],
+      const updatedTasks =
+        tasks.map(
+          (
+            item,
+            itemIndex
+          ) =>
+            itemIndex === index
+              ? {
+                  ...item,
+                  done:
+                    newCompleted,
+                }
+              : item
+        );
 
-      done:
-        !updatedTasks[index].done,
+
+      // ------------------------------------------------------
+      // Update UI immediately
+      // ------------------------------------------------------
+
+      setTasks(
+        updatedTasks
+      );
+
+
+      // ------------------------------------------------------
+      // Save completion state
+      // ------------------------------------------------------
+
+      if (
+        task.id &&
+        onTaskToggle
+      ) {
+
+        await onTaskToggle(
+          task.id,
+          newCompleted
+        );
+
+      }
+
     };
 
 
-    setTasks(
-      updatedTasks
-    );
-
-
-    // Send updated tasks to LandingPage.
-
-    if (onResult) {
-
-      onResult({
-
-        transcript,
-
-        tasks:
-          updatedTasks,
-
-        reminder:
-          detectedReminder,
-
-      });
-    }
-  };
-
-
   // ==========================================================
-  // SPEECH SUPPORT + CLEANUP
+  // CLEANUP
   // ==========================================================
 
   useEffect(() => {
@@ -673,7 +806,9 @@ function AppScreen({ user, onResult }) {
 
     if (!SpeechRecognition) {
 
-      setIsSpeechSupported(false);
+      setIsSpeechSupported(
+        false
+      );
 
     }
 
@@ -683,20 +818,16 @@ function AppScreen({ user, onResult }) {
       stopTimer();
 
 
-      if (recognitionRef.current) {
+      if (
+        recognitionRef.current
+      ) {
 
         try {
 
           recognitionRef.current.stop();
 
-        } catch (error) {
+        } catch {}
 
-          console.log(
-            "Recognition cleanup skipped:",
-            error
-          );
-
-        }
       }
 
     };
@@ -705,11 +836,12 @@ function AppScreen({ user, onResult }) {
 
 
   // ==========================================================
-  // TRANSCRIPT READY
+  // TRANSCRIPT STATUS
   // ==========================================================
 
   const showTranscriptReady =
-    transcript !== DEFAULT_TRANSCRIPT &&
+    transcript !==
+      DEFAULT_TRANSCRIPT &&
     transcript !==
       "Listening... speak now 🎙️";
 
@@ -719,7 +851,6 @@ function AppScreen({ user, onResult }) {
   // ==========================================================
 
   return (
-
     <div className="appscreen-page">
 
       <div className="screen-ambient ambient-a"></div>
@@ -740,25 +871,20 @@ function AppScreen({ user, onResult }) {
 
             <span className="screen-dot"></span>
 
-
             <div>
 
               <span className="screen-name">
                 Voice2Task Studio
               </span>
 
-
               <p
                 style={{
                   margin:
                     "4px 0 0",
-
                   fontSize:
                     "0.78rem",
-
                   color:
                     "#aeb8dc",
-
                   fontWeight:
                     500,
                 }}
@@ -775,20 +901,28 @@ function AppScreen({ user, onResult }) {
 
             <button
               className="top-btn"
-              onClick={() =>
-                navigate("/")
-              }
+              onClick={() => {
+
+                window.scrollTo({
+                  top: 0,
+                  behavior:
+                    "smooth",
+                });
+
+                navigate("/");
+
+              }}
             >
               ← Home
             </button>
 
 
-            <button className="top-btn active">
-
+            <button
+              className="top-btn active"
+            >
               {isRecording
                 ? "Recording Live"
                 : "AI Productivity"}
-
             </button>
 
           </div>
@@ -796,24 +930,21 @@ function AppScreen({ user, onResult }) {
         </header>
 
 
-
         {/* ==================================================
-            MAIN GRID
+            MAIN
         ================================================== */}
 
         <section className="appscreen-grid">
 
 
           {/* =================================================
-              LEFT COLUMN
+              LEFT
           ================================================= */}
 
           <div className="left-stack">
 
 
-            {/* -------------------------------------------------
-                RECORDING PANEL
-            ------------------------------------------------- */}
+            {/* RECORDING */}
 
             <div className="screen-card glass record-panel">
 
@@ -862,7 +993,9 @@ function AppScreen({ user, onResult }) {
 
               <div className="timer">
 
-                {formatTime(seconds)}
+                {formatTime(
+                  seconds
+                )}
 
               </div>
 
@@ -899,7 +1032,9 @@ function AppScreen({ user, onResult }) {
 
                 <button
                   className="secondary-action"
-                  onClick={handleReset}
+                  onClick={
+                    handleReset
+                  }
                 >
                   Reset
                 </button>
@@ -909,10 +1044,7 @@ function AppScreen({ user, onResult }) {
             </div>
 
 
-
-            {/* -------------------------------------------------
-                TRANSCRIPT PANEL
-            ------------------------------------------------- */}
+            {/* TRANSCRIPT */}
 
             <div className="screen-card glass transcript-panel">
 
@@ -936,10 +1068,11 @@ function AppScreen({ user, onResult }) {
               <textarea
                 rows="8"
                 value={transcript}
-                onChange={(event) =>
-                  setTranscript(
-                    event.target.value
-                  )
+                onChange={
+                  event =>
+                    setTranscript(
+                      event.target.value
+                    )
                 }
               />
 
@@ -950,10 +1083,8 @@ function AppScreen({ user, onResult }) {
                   style={{
                     marginTop:
                       "12px",
-
                     color:
                       "#ff9ed2",
-
                     fontSize:
                       "0.9rem",
                   }}
@@ -968,9 +1099,8 @@ function AppScreen({ user, onResult }) {
           </div>
 
 
-
           {/* =================================================
-              RIGHT COLUMN
+              RIGHT
           ================================================= */}
 
           <div className="screen-card glass todo-panel">
@@ -993,8 +1123,12 @@ function AppScreen({ user, onResult }) {
 
               <button
                 className="extract-action"
-                onClick={handleExtract}
-                disabled={isExtracting}
+                onClick={
+                  handleExtract
+                }
+                disabled={
+                  isExtracting
+                }
               >
 
                 {isExtracting
@@ -1006,10 +1140,7 @@ function AppScreen({ user, onResult }) {
             </div>
 
 
-
-            {/* ------------------------------------------------
-                STATS
-            ------------------------------------------------ */}
+            {/* STATS */}
 
             <div className="stats-row">
 
@@ -1054,20 +1185,23 @@ function AppScreen({ user, onResult }) {
             </div>
 
 
-
-            {/* ------------------------------------------------
-                TASK LIST
-            ------------------------------------------------ */}
+            {/* TASKS */}
 
             <div className="task-list">
 
               {tasks.length > 0 ? (
 
                 tasks.map(
-                  (task, index) => (
+                  (
+                    task,
+                    index
+                  ) => (
 
                     <div
-                      key={index}
+                      key={
+                        task.id ||
+                        `${task.text}-${index}`
+                      }
                       className={`task-item ${
                         task.done
                           ? "done"
@@ -1086,11 +1220,11 @@ function AppScreen({ user, onResult }) {
                           }
                           onChange={() =>
                             toggleTask(
+                              task,
                               index
                             )
                           }
                         />
-
 
                         <span>
                           {task.text}
@@ -1122,7 +1256,7 @@ function AppScreen({ user, onResult }) {
 
                       {showTranscriptReady
                         ? "Transcript ready ✨ Tap Extract Tasks to generate your smart checklist."
-                        : "No tasks yet — record a voice note and let AI build your to-do list."}
+                        : "No tasks yet — your saved tasks will appear here."}
 
                     </span>
 
@@ -1135,10 +1269,7 @@ function AppScreen({ user, onResult }) {
             </div>
 
 
-
-            {/* ------------------------------------------------
-                REMINDER
-            ------------------------------------------------ */}
+            {/* REMINDER */}
 
             <div className="reminder-box">
 
@@ -1146,11 +1277,8 @@ function AppScreen({ user, onResult }) {
                 Detected Reminder
               </p>
 
-
               <div className="reminder-pill">
-
                 {detectedReminder}
-
               </div>
 
             </div>

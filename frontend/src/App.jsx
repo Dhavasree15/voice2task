@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   BrowserRouter,
   Navigate,
@@ -16,50 +15,77 @@ import { supabase } from "./supabaseClient";
 
 
 // ============================================================
-// LANDING PAGE ROUTE
+// DATABASE TASK → FRONTEND TASK
 // ============================================================
 
-function LandingRoute({ latestResult }) {
+function mapDatabaseTask(row) {
+  return {
+    id: row.id,
+    text: row.task,
+    time: row.start_time || row.end_time || "",
+    start_time: row.start_time || "",
+    end_time: row.end_time || "",
+    done: Boolean(row.completed),
+  };
+}
+
+
+// ============================================================
+// LANDING ROUTE
+// ============================================================
+
+function LandingRoute({
+  latestResult,
+}) {
   const navigate = useNavigate();
 
   return (
     <LandingPage
       latestResult={latestResult}
-      onStart={() => navigate("/app")}
+      onStart={() => {
+        navigate("/app");
+      }}
     />
   );
 }
 
 
 // ============================================================
-// APP SCREEN ROUTE
+// APP ROUTE
 // ============================================================
 
-function AppRoute({ user, onResult }) {
+function AppRoute({
+  user,
+  tasks,
+  latestResult,
+  onResult,
+  onTaskToggle,
+}) {
   return (
     <AppScreen
       user={user}
+      tasks={tasks}
+      latestResult={latestResult}
       onResult={onResult}
+      onTaskToggle={onTaskToggle}
     />
   );
 }
 
 
 // ============================================================
-// AUTHENTICATED ROUTES
+// USER ROUTES
 // ============================================================
 
 function UserRoutes({
   user,
+  tasks,
   latestResult,
-  setLatestResult,
+  onResult,
+  onTaskToggle,
 }) {
   return (
     <Routes>
-
-      {/* ------------------------------------------------------
-          LANDING PAGE
-      ------------------------------------------------------ */}
 
       <Route
         path="/"
@@ -70,25 +96,18 @@ function UserRoutes({
         }
       />
 
-
-      {/* ------------------------------------------------------
-          VOICE2TASK APP
-      ------------------------------------------------------ */}
-
       <Route
         path="/app"
         element={
           <AppRoute
             user={user}
-            onResult={setLatestResult}
+            tasks={tasks}
+            latestResult={latestResult}
+            onResult={onResult}
+            onTaskToggle={onTaskToggle}
           />
         }
       />
-
-
-      {/* ------------------------------------------------------
-          UNKNOWN ROUTE
-      ------------------------------------------------------ */}
 
       <Route
         path="*"
@@ -117,30 +136,33 @@ function Application() {
   const [loading, setLoading] =
     useState(true);
 
-
-  // ==========================================================
-  // LATEST RESULT
-  // ==========================================================
+  const [tasks, setTasks] =
+    useState([]);
 
   const [latestResult, setLatestResult] =
     useState(null);
 
 
   // ==========================================================
-  // LOAD SAVED TASKS FROM SUPABASE
+  // LOAD TASKS FROM SUPABASE
   // ==========================================================
 
-  const loadSavedTasks = async (currentUser) => {
+  const loadTasks = async (
+    currentUser
+  ) => {
 
     if (!currentUser) {
-      return;
+
+      setTasks([]);
+
+      return [];
     }
 
 
     try {
 
       console.log(
-        "Loading saved tasks for user:",
+        "Loading tasks for:",
         currentUser.id
       );
 
@@ -172,68 +194,56 @@ function Application() {
           error
         );
 
-        return;
+        return [];
+
       }
 
 
-      console.log(
-        "Saved tasks loaded:",
-        data
-      );
-
-
-      if (
-        !data ||
-        data.length === 0
-      ) {
-
-        setLatestResult(null);
-
-        return;
-      }
-
-
-      // ------------------------------------------------------
-      // Convert Supabase format into application format
-      // ------------------------------------------------------
-
-      const tasks =
-        data.map(
-          (row) => ({
-
-            id:
-              row.id,
-
-            text:
-              row.task,
-
-            time:
-              row.start_time ||
-              row.end_time ||
-              "",
-
-            done:
-              Boolean(
-                row.completed
-              ),
-
-          })
+      const loadedTasks =
+        (data || []).map(
+          mapDatabaseTask
         );
 
 
-      setLatestResult({
+      console.log(
+        "Loaded tasks:",
+        loadedTasks
+      );
 
-        transcript:
-          "",
 
-        tasks:
-          tasks,
+      setTasks(
+        loadedTasks
+      );
 
-        reminder:
-          "",
 
-      });
+      setLatestResult(
+        previous => {
 
+          if (
+            loadedTasks.length === 0
+          ) {
+
+            return previous;
+
+          }
+
+
+          return {
+            transcript:
+              previous?.transcript || "",
+
+            tasks:
+              loadedTasks,
+
+            reminder:
+              previous?.reminder || "",
+          };
+
+        }
+      );
+
+
+      return loadedTasks;
 
     } catch (error) {
 
@@ -242,42 +252,49 @@ function Application() {
         error
       );
 
+      return [];
+
     }
 
   };
 
 
   // ==========================================================
-  // SAVE RESULT
+  // SAVE EXTRACTED RESULT
   // ==========================================================
 
   const handleResult = async (
     result
   ) => {
 
-    // --------------------------------------------------------
-    // Update React immediately
-    // --------------------------------------------------------
-
-    setLatestResult(
-      result
-    );
-
-
-    // --------------------------------------------------------
-    // If AppScreen sends null
-    // --------------------------------------------------------
-
     if (!result) {
-
-      return;
-
+      return [];
     }
 
 
     // --------------------------------------------------------
-    // No logged-in user
+    // Immediately update UI
     // --------------------------------------------------------
+
+    setLatestResult(
+      previous => ({
+        transcript:
+          result.transcript ||
+          previous?.transcript ||
+          "",
+
+        reminder:
+          result.reminder ||
+          previous?.reminder ||
+          "",
+
+        tasks:
+          result.tasks ||
+          previous?.tasks ||
+          [],
+      })
+    );
+
 
     if (!user) {
 
@@ -285,14 +302,9 @@ function Application() {
         "Cannot save tasks because no user is logged in."
       );
 
-      return;
-
+      return [];
     }
 
-
-    // --------------------------------------------------------
-    // Make sure tasks exist
-    // --------------------------------------------------------
 
     if (
       !Array.isArray(
@@ -305,25 +317,20 @@ function Application() {
         "No tasks to save."
       );
 
-      return;
+      return [];
 
     }
 
 
     try {
 
-      console.log(
-        "Saving tasks to Supabase..."
-      );
-
-
       // ------------------------------------------------------
-      // Prepare rows
+      // Prepare database rows
       // ------------------------------------------------------
 
       const rows =
         result.tasks.map(
-          (task) => ({
+          task => ({
 
             user_id:
               user.id,
@@ -352,7 +359,7 @@ function Application() {
 
 
       console.log(
-        "Rows going to Supabase:",
+        "Saving rows:",
         rows
       );
 
@@ -366,8 +373,12 @@ function Application() {
         error,
       } = await supabase
         .from("tasks")
-        .insert(rows)
-        .select();
+        .insert(
+          rows
+        )
+        .select(
+          "id, task, start_time, end_time, completed, created_at"
+        );
 
 
       if (error) {
@@ -378,70 +389,214 @@ function Application() {
         );
 
         alert(
-          `Could not save tasks.\n\n${error.message}`
+          `Could not save tasks:\n\n${error.message}`
         );
 
-        return;
+        return [];
+
       }
 
 
+      const newTasks =
+        (data || []).map(
+          mapDatabaseTask
+        );
+
+
       console.log(
-        "Tasks successfully saved:",
-        data
+        "New tasks saved:",
+        newTasks
       );
 
 
       // ------------------------------------------------------
-      // Put Supabase IDs into local result
+      // IMPORTANT:
+      // Merge new tasks with existing tasks.
       // ------------------------------------------------------
 
-      if (data) {
+      setTasks(
+        previous => {
 
-        const savedTasks =
-          data.map(
-            (row) => ({
-
-              id:
-                row.id,
-
-              text:
-                row.task,
-
-              time:
-                row.start_time ||
-                row.end_time ||
-                "",
-
-              done:
-                Boolean(
-                  row.completed
-                ),
-
-            })
-          );
+          const existingIds =
+            new Set(
+              previous.map(
+                task => task.id
+              )
+            );
 
 
-        const updatedResult = {
+          const uniqueNewTasks =
+            newTasks.filter(
+              task =>
+                !existingIds.has(
+                  task.id
+                )
+            );
 
-          ...result,
 
-          tasks:
-            savedTasks,
+          return [
+            ...uniqueNewTasks,
+            ...previous,
+          ];
 
-        };
+        }
+      );
 
 
-        setLatestResult(
-          updatedResult
+      setLatestResult(
+        previous => {
+
+          const previousTasks =
+            previous?.tasks || [];
+
+
+          return {
+
+            transcript:
+              result.transcript ||
+              previous?.transcript ||
+              "",
+
+            reminder:
+              result.reminder ||
+              previous?.reminder ||
+              "",
+
+            tasks: [
+              ...newTasks,
+              ...previousTasks,
+            ],
+
+          };
+
+        }
+      );
+
+
+      // ------------------------------------------------------
+      // Return saved tasks to AppScreen
+      // ------------------------------------------------------
+
+      return newTasks;
+
+    } catch (error) {
+
+      console.error(
+        "Unexpected Supabase save error:",
+        error
+      );
+
+      return [];
+
+    }
+
+  };
+
+
+  // ==========================================================
+  // TOGGLE TASK
+  // ==========================================================
+
+  const handleTaskToggle = async (
+    taskId,
+    completed
+  ) => {
+
+    if (!user) {
+      return;
+    }
+
+
+    try {
+
+      const {
+        error,
+      } = await supabase
+        .from("tasks")
+        .update({
+          completed:
+            completed,
+        })
+        .eq(
+          "id",
+          taskId
+        )
+        .eq(
+          "user_id",
+          user.id
         );
 
+
+      if (error) {
+
+        console.error(
+          "Failed to update task:",
+          error
+        );
+
+        return;
+
       }
+
+
+      // ------------------------------------------------------
+      // Update global task state
+      // ------------------------------------------------------
+
+      setTasks(
+        previous =>
+          previous.map(
+            task =>
+              task.id === taskId
+                ? {
+                    ...task,
+                    done:
+                      completed,
+                  }
+                : task
+          )
+      );
+
+
+      // ------------------------------------------------------
+      // Update latest result
+      // ------------------------------------------------------
+
+      setLatestResult(
+        previous => {
+
+          if (!previous) {
+            return previous;
+          }
+
+
+          return {
+
+            ...previous,
+
+            tasks:
+              (previous.tasks || [])
+                .map(
+                  task =>
+                    task.id === taskId
+                      ? {
+                          ...task,
+                          done:
+                            completed,
+                        }
+                      : task
+                ),
+
+          };
+
+        }
+      );
 
 
     } catch (error) {
 
       console.error(
-        "Unexpected Supabase error:",
+        "Unexpected task update error:",
         error
       );
 
@@ -451,7 +606,7 @@ function Application() {
 
 
   // ==========================================================
-  // LOAD SUPABASE SESSION
+  // LOAD SESSION
   // ==========================================================
 
   useEffect(() => {
@@ -459,31 +614,35 @@ function Application() {
     let mounted = true;
 
 
-    async function loadSession() {
+    const loadSession =
+      async () => {
 
-      try {
+        try {
 
-        const {
-          data,
-          error,
-        } =
-          await supabase.auth.getSession();
-
-
-        if (error) {
-
-          console.error(
-            "Supabase session error:",
-            error
-          );
-
-        }
+          const {
+            data,
+            error,
+          } =
+            await supabase.auth.getSession();
 
 
-        if (mounted) {
+          if (error) {
+
+            console.error(
+              "Session error:",
+              error
+            );
+
+          }
+
+
+          if (!mounted) {
+            return;
+          }
+
 
           const currentUser =
-            data?.session?.user ??
+            data?.session?.user ||
             null;
 
 
@@ -492,49 +651,42 @@ function Application() {
           );
 
 
-          // --------------------------------------------------
-          // Load tasks belonging to this user
-          // --------------------------------------------------
-
           if (currentUser) {
 
-            await loadSavedTasks(
+            await loadTasks(
               currentUser
             );
 
           }
 
 
-          setLoading(
-            false
+          if (mounted) {
+
+            setLoading(
+              false
+            );
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Session loading error:",
+            error
           );
+
+
+          if (mounted) {
+
+            setUser(null);
+
+            setLoading(false);
+
+          }
 
         }
 
-
-      } catch (error) {
-
-        console.error(
-          "Failed to load Supabase session:",
-          error
-        );
-
-
-        if (mounted) {
-
-          setUser(
-            null
-          );
-
-          setLoading(
-            false
-          );
-
-        }
-
-      }
-
-    }
+      };
 
 
     loadSession();
@@ -556,14 +708,12 @@ function Application() {
         ) => {
 
           if (!mounted) {
-
             return;
-
           }
 
 
           const currentUser =
-            session?.user ??
+            session?.user ||
             null;
 
 
@@ -574,15 +724,15 @@ function Application() {
 
           if (currentUser) {
 
-            await loadSavedTasks(
+            await loadTasks(
               currentUser
             );
 
           } else {
 
-            setLatestResult(
-              null
-            );
+            setTasks([]);
+
+            setLatestResult(null);
 
           }
 
@@ -592,7 +742,8 @@ function Application() {
 
     return () => {
 
-      mounted = false;
+      mounted =
+        false;
 
       subscription.unsubscribe();
 
@@ -602,13 +753,12 @@ function Application() {
 
 
   // ==========================================================
-  // LOADING SCREEN
+  // LOADING
   // ==========================================================
 
   if (loading) {
 
     return (
-
       <div className="loading-screen">
 
         <div className="loading-content">
@@ -626,14 +776,13 @@ function Application() {
         </div>
 
       </div>
-
     );
 
   }
 
 
   // ==========================================================
-  // LOGIN / AUTHENTICATION
+  // AUTH
   // ==========================================================
 
   if (!user) {
@@ -644,46 +793,36 @@ function Application() {
 
 
   // ==========================================================
-  // APPLICATION
+  // APP
   // ==========================================================
 
   return (
-
     <UserRoutes
-
-      user={
-        user
+      user={user}
+      tasks={tasks}
+      latestResult={latestResult}
+      onResult={handleResult}
+      onTaskToggle={
+        handleTaskToggle
       }
-
-      latestResult={
-        latestResult
-      }
-
-      setLatestResult={
-        handleResult
-      }
-
     />
-
   );
 
 }
 
 
 // ============================================================
-// ROOT APP
+// ROOT
 // ============================================================
 
 function App() {
 
   return (
-
     <BrowserRouter>
 
       <Application />
 
     </BrowserRouter>
-
   );
 
 }
