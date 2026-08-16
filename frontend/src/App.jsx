@@ -114,9 +114,76 @@ function Application() {
 
   const [loading, setLoading] = useState(true);
 
-  // This is the important state.
-  // AppScreen sends the extracted result here.
-  const [latestResult, setLatestResult] = useState(null);
+
+  // ==========================================================
+  // LOAD SAVED RESULT
+  // ==========================================================
+
+  const [latestResult, setLatestResult] = useState(() => {
+
+    try {
+
+      const saved =
+        localStorage.getItem(
+          "voice2task_latest_result"
+        );
+
+      return saved
+        ? JSON.parse(saved)
+        : null;
+
+    } catch (error) {
+
+      console.error(
+        "Failed to load saved result:",
+        error
+      );
+
+      return null;
+    }
+
+  });
+
+
+  // ==========================================================
+  // SAVE RESULT
+  // ==========================================================
+
+  const handleResult = (result) => {
+
+    // Update React state immediately
+    setLatestResult(result);
+
+
+    try {
+
+      if (result) {
+
+        // Save latest transcript/tasks/reminder
+        localStorage.setItem(
+          "voice2task_latest_result",
+          JSON.stringify(result)
+        );
+
+      } else {
+
+        // Clear saved result when AppScreen sends null
+        localStorage.removeItem(
+          "voice2task_latest_result"
+        );
+
+      }
+
+    } catch (error) {
+
+      console.error(
+        "Failed to save latest result:",
+        error
+      );
+
+    }
+
+  };
 
 
   // ==========================================================
@@ -139,10 +206,12 @@ function Application() {
 
 
         if (error) {
+
           console.error(
             "Supabase session error:",
             error
           );
+
         }
 
 
@@ -163,6 +232,7 @@ function Application() {
           error
         );
 
+
         if (mounted) {
 
           setUser(null);
@@ -172,6 +242,7 @@ function Application() {
         }
 
       }
+
     }
 
 
@@ -193,6 +264,7 @@ function Application() {
           return;
         }
 
+
         setUser(
           session?.user ?? null
         );
@@ -213,12 +285,13 @@ function Application() {
 
 
   // ==========================================================
-  // LOADING
+  // LOADING SCREEN
   // ==========================================================
 
   if (loading) {
 
     return (
+
       <div className="loading-screen">
 
         <div className="loading-content">
@@ -236,16 +309,20 @@ function Application() {
         </div>
 
       </div>
+
     );
+
   }
 
 
   // ==========================================================
-  // LOGIN
+  // LOGIN / AUTHENTICATION
   // ==========================================================
 
   if (!user) {
+
     return <Auth />;
+
   }
 
 
@@ -254,12 +331,19 @@ function Application() {
   // ==========================================================
 
   return (
+
     <UserRoutes
+
       user={user}
+
       latestResult={latestResult}
-      setLatestResult={setLatestResult}
+
+      setLatestResult={handleResult}
+
     />
+
   );
+
 }
 
 
@@ -270,10 +354,15 @@ function Application() {
 function App() {
 
   return (
+
     <BrowserRouter>
+
       <Application />
+
     </BrowserRouter>
+
   );
+
 }
 
 
