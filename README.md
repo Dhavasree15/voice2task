@@ -1,60 +1,107 @@
-# Voice2Task 🎙️✨
+# Voice2Task
 
-Voice2Task is an AI-powered productivity web application that converts live voice notes into structured to-do tasks with real-time speech recognition, task extraction, and reminder detection.
+Voice2Task is an AI-powered productivity application that converts natural voice input into structured tasks and reminders.
 
-It is designed to help users quickly capture spoken thoughts and transform them into an actionable task list through a clean and aesthetic interface.
+The application allows users to record a voice note, convert speech into text, extract actionable tasks using the Google Gemini API, identify associated timings, and manage the resulting tasks through an interactive task management interface. User authentication and persistent task storage are handled through Supabase.
 
----
+## Overview
 
-## 🚀 Features
+Managing tasks from unstructured voice notes can be time-consuming. Voice2Task addresses this by transforming conversational input into actionable and time-aware tasks without requiring users to manually format or organize their thoughts.
 
-- 🎤 Real-time voice recording in the browser
-- 📝 Live speech-to-text transcription
-- ✅ Smart task extraction from spoken input
-- ⏰ Time-based reminder detection
-- 📋 Interactive to-do list with completion tracking
-- 🎨 Modern dark-themed UI with premium aesthetic styling
-- ⚡ Fast frontend-backend communication using React + FastAPI
+For example:
 
----
+> "Tomorrow at 5 PM, call my mentor, finish the project presentation and submit the report before evening."
 
-## 📸 Screenshots
+Voice2Task processes the input, identifies the actionable items and associated time information, and converts them into structured tasks that can be tracked and completed.
 
-### 1. Landing / Main Screen
-![Landing Screen](./screenshots/landing_page.png)
+## Key Features
 
-### 2. Live Recording in Progress
-![Recording Screen](./screenshots/app_screen.png)
+- Voice-based task capture
+- Real-time speech-to-text transcription
+- AI-powered task extraction using Google Gemini
+- Natural-language time detection
+- Reminder detection
+- Structured task and reminder generation
+- Interactive task management
+- Task completion tracking
+- User authentication with Supabase
+- Persistent PostgreSQL database storage
+- User-specific task management
+- Persistent task retrieval across navigation
+- Responsive web interface
+- Production deployment with Vercel
 
-### 3. Extracted Tasks Output
-![Tasks Output](./screenshots/final_page.png)
+## Screenshots
 
----
+![Voice2Task Final Interface](screenshots/final_page.png)
 
-## 🛠️ Tech Stack
-
-### Frontend
-- React.js
-- CSS3
-- Web Speech API / Browser Speech Recognition
-
-### Backend
-- FastAPI
-- Python
-- Regex-based task parsing logic
-- Uvicorn
-
----
-
-## ⚙️ Project Structure
+## Application Flow
 
 ```text
-voice2task/
-├── frontend/
-├── backend/
-├── screenshots/
-│   ├── landing_page.png
-│   ├── app_screen.png
-│   └── final_page.png
-├── README.md
-└── .gitignore
+Voice Input
+    ↓
+Speech-to-Text
+    ↓
+Transcript
+    ↓
+React Frontend
+    ↓
+FastAPI Backend
+    ↓
+Google Gemini API
+    ↓
+Task & Time Extraction
+    ↓
+Structured Task Data
+    ↓
+Supabase PostgreSQL
+    ↓
+Persistent Task Storage
+    ↓
+Task Management Interface
+
+## Technology Stack
+
+Frontend       → React.js, Vite, JavaScript, CSS3
+Speech         → Web Speech API
+Backend        → Python, FastAPI, Uvicorn
+AI             → Google Gemini API
+Database       → Supabase PostgreSQL
+Authentication → Supabase Auth
+Security       → Row Level Security
+Deployment     → Vercel
+Version Control → Git, GitHub
+
+## Authentication & Security
+
+User Authentication
+        ↓
+Authenticated User
+        ↓
+User ID
+        ↓
+User-Specific Tasks
+        ↓
+Supabase PostgreSQL
+
+## Project Architecture
+
+                    User
+                     ↓
+              Voice Input
+                     ↓
+             React Frontend
+                     ↓
+              FastAPI Backend
+                     ↓
+             Google Gemini
+                     ↓
+          Structured Task Data
+                     ↓
+                Supabase
+             ↙             ↘
+      Authentication      Database
+                              ↓
+                         Task Storage
+                              ↓
+                     Task Management UI
