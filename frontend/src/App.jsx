@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   BrowserRouter,
   Navigate,
@@ -19,13 +20,31 @@ import { supabase } from "./supabaseClient";
 // ============================================================
 
 function mapDatabaseTask(row) {
+
   return {
-    id: row.id,
-    text: row.task,
-    time: row.start_time || row.end_time || "",
-    start_time: row.start_time || "",
-    end_time: row.end_time || "",
-    done: Boolean(row.completed),
+    id:
+      row.id,
+
+    text:
+      row.task || "",
+
+    time:
+      row.start_time ||
+      row.end_time ||
+      "",
+
+    start_time:
+      row.start_time ||
+      "",
+
+    end_time:
+      row.end_time ||
+      "",
+
+    done:
+      Boolean(
+        row.completed
+      ),
   };
 }
 
@@ -37,14 +56,31 @@ function mapDatabaseTask(row) {
 function LandingRoute({
   latestResult,
 }) {
-  const navigate = useNavigate();
+
+  const navigate =
+    useNavigate();
+
 
   return (
     <LandingPage
-      latestResult={latestResult}
+
+      latestResult={
+        latestResult
+      }
+
       onStart={() => {
-        navigate("/app");
+
+        window.scrollTo(
+          0,
+          0
+        );
+
+        navigate(
+          "/app"
+        );
+
       }}
+
     />
   );
 }
@@ -61,20 +97,37 @@ function AppRoute({
   onResult,
   onTaskToggle,
 }) {
+
   return (
     <AppScreen
-      user={user}
-      tasks={tasks}
-      latestResult={latestResult}
-      onResult={onResult}
-      onTaskToggle={onTaskToggle}
+
+      user={
+        user
+      }
+
+      tasks={
+        tasks
+      }
+
+      latestResult={
+        latestResult
+      }
+
+      onResult={
+        onResult
+      }
+
+      onTaskToggle={
+        onTaskToggle
+      }
+
     />
   );
 }
 
 
 // ============================================================
-// USER ROUTES
+// ROUTES
 // ============================================================
 
 function UserRoutes({
@@ -84,30 +137,63 @@ function UserRoutes({
   onResult,
   onTaskToggle,
 }) {
+
   return (
     <Routes>
+
+      {/* ==================================================
+          LANDING PAGE
+      ================================================== */}
 
       <Route
         path="/"
         element={
           <LandingRoute
-            latestResult={latestResult}
+            latestResult={
+              latestResult
+            }
           />
         }
       />
+
+
+      {/* ==================================================
+          VOICE2TASK APP
+      ================================================== */}
 
       <Route
         path="/app"
         element={
           <AppRoute
-            user={user}
-            tasks={tasks}
-            latestResult={latestResult}
-            onResult={onResult}
-            onTaskToggle={onTaskToggle}
+
+            user={
+              user
+            }
+
+            tasks={
+              tasks
+            }
+
+            latestResult={
+              latestResult
+            }
+
+            onResult={
+              onResult
+            }
+
+            onTaskToggle={
+              onTaskToggle
+            }
+
           />
         }
       />
+
+
+      {/* ==================================================
+          UNKNOWN ROUTE
+      ================================================== */}
 
       <Route
         path="*"
@@ -133,203 +219,476 @@ function Application() {
   const [user, setUser] =
     useState(null);
 
+
   const [loading, setLoading] =
     useState(true);
 
+
   const [tasks, setTasks] =
     useState([]);
+
 
   const [latestResult, setLatestResult] =
     useState(null);
 
 
   // ==========================================================
+  // LOCAL STORAGE KEY
+  // ==========================================================
+
+  const getStorageKey =
+    (userId) =>
+      `voice2task_latest_${userId}`;
+
+
+  // ==========================================================
+  // SAVE LATEST RESULT LOCALLY
+  // ==========================================================
+
+  const saveLocalResult =
+    (userId, result) => {
+
+      if (
+        !userId ||
+        !result
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        localStorage.setItem(
+
+          getStorageKey(
+            userId
+          ),
+
+          JSON.stringify(
+            result
+          )
+
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Could not save local result:",
+          error
+        );
+
+      }
+
+    };
+
+
+  // ==========================================================
+  // LOAD LATEST RESULT LOCALLY
+  // ==========================================================
+
+  const loadLocalResult =
+    (userId) => {
+
+      if (!userId) {
+
+        return null;
+
+      }
+
+
+      try {
+
+        const stored =
+          localStorage.getItem(
+            getStorageKey(
+              userId
+            )
+          );
+
+
+        if (!stored) {
+
+          return null;
+
+        }
+
+
+        return JSON.parse(
+          stored
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Could not load local result:",
+          error
+        );
+
+
+        return null;
+
+      }
+
+    };
+
+
+  // ==========================================================
   // LOAD TASKS FROM SUPABASE
   // ==========================================================
 
-  const loadTasks = async (
-    currentUser
-  ) => {
+  const loadTasks =
+    async (
+      currentUser
+    ) => {
 
-    if (!currentUser) {
+      if (!currentUser) {
 
-      setTasks([]);
-
-      return [];
-    }
-
-
-    try {
-
-      console.log(
-        "Loading tasks for:",
-        currentUser.id
-      );
-
-
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("tasks")
-        .select(
-          "id, task, start_time, end_time, completed, created_at"
-        )
-        .eq(
-          "user_id",
-          currentUser.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
-
-
-      if (error) {
-
-        console.error(
-          "Failed to load tasks:",
-          error
-        );
+        setTasks([]);
 
         return [];
 
       }
 
 
-      const loadedTasks =
-        (data || []).map(
-          mapDatabaseTask
+      try {
+
+        console.log(
+          "Loading tasks from Supabase for:",
+          currentUser.id
         );
 
 
-      console.log(
-        "Loaded tasks:",
-        loadedTasks
-      );
+        const {
+          data,
+          error,
+        } =
+          await supabase
+
+            .from("tasks")
+
+            .select(
+              "id, task, start_time, end_time, completed, created_at"
+            )
+
+            .eq(
+              "user_id",
+              currentUser.id
+            )
+
+            .order(
+              "created_at",
+              {
+                ascending:
+                  false,
+              }
+            );
 
 
-      setTasks(
-        loadedTasks
-      );
+        // ----------------------------------------------------
+        // SUPABASE LOAD ERROR
+        // ----------------------------------------------------
+
+        if (error) {
+
+          console.error(
+            "SUPABASE LOAD ERROR:",
+            error
+          );
 
 
-      setLatestResult(
-        previous => {
+          const localResult =
+            loadLocalResult(
+              currentUser.id
+            );
 
-          if (
-            loadedTasks.length === 0
-          ) {
 
-            return previous;
+          if (localResult) {
+
+            setLatestResult(
+              localResult
+            );
+
+
+            setTasks(
+              localResult.tasks ||
+              []
+            );
 
           }
 
 
-          return {
+          return [];
+
+        }
+
+
+        // ----------------------------------------------------
+        // CONVERT DATABASE TASKS
+        // ----------------------------------------------------
+
+        const loadedTasks =
+          (data || []).map(
+            mapDatabaseTask
+          );
+
+
+        console.log(
+          "TASKS LOADED FROM SUPABASE:",
+          loadedTasks
+        );
+
+
+        setTasks(
+          loadedTasks
+        );
+
+
+        // ----------------------------------------------------
+        // LOAD LOCAL RESULT FOR TRANSCRIPT / REMINDER
+        // ----------------------------------------------------
+
+        const localResult =
+          loadLocalResult(
+            currentUser.id
+          );
+
+
+        if (localResult) {
+
+          setLatestResult({
+
             transcript:
-              previous?.transcript || "",
+              localResult.transcript ||
+              "",
+
+            reminder:
+              localResult.reminder ||
+              "",
+
+            tasks:
+              loadedTasks.length > 0
+                ? loadedTasks
+                : (
+                    localResult.tasks ||
+                    []
+                  ),
+
+          });
+
+        }
+
+
+        // ----------------------------------------------------
+        // IF DATABASE HAS TASKS BUT LOCAL RESULT DOESN'T
+        // ----------------------------------------------------
+
+        else if (
+          loadedTasks.length > 0
+        ) {
+
+          const databaseResult = {
+
+            transcript:
+              "",
+
+            reminder:
+              "",
 
             tasks:
               loadedTasks,
 
-            reminder:
-              previous?.reminder || "",
           };
 
+
+          setLatestResult(
+            databaseResult
+          );
+
+
+          saveLocalResult(
+            currentUser.id,
+            databaseResult
+          );
+
         }
-      );
 
 
-      return loadedTasks;
+        return loadedTasks;
 
-    } catch (error) {
+      } catch (error) {
 
-      console.error(
-        "Unexpected task loading error:",
-        error
-      );
+        console.error(
+          "Unexpected task loading error:",
+          error
+        );
 
-      return [];
 
-    }
+        const localResult =
+          loadLocalResult(
+            currentUser.id
+          );
 
-  };
+
+        if (localResult) {
+
+          setLatestResult(
+            localResult
+          );
+
+
+          setTasks(
+            localResult.tasks ||
+            []
+          );
+
+        }
+
+
+        return [];
+
+      }
+
+    };
 
 
   // ==========================================================
-  // SAVE EXTRACTED RESULT
+  // HANDLE EXTRACTED RESULT
   // ==========================================================
 
-  const handleResult = async (
-    result
-  ) => {
+  const handleResult =
+    async (
+      result
+    ) => {
 
-    if (!result) {
-      return [];
-    }
+      if (!result) {
+
+        return [];
+
+      }
 
 
-    // --------------------------------------------------------
-    // Immediately update UI
-    // --------------------------------------------------------
+      console.log(
+        "================================"
+      );
 
-    setLatestResult(
-      previous => ({
+      console.log(
+        "RESULT RECEIVED FROM APPSCREEN"
+      );
+
+      console.log(
+        result
+      );
+
+      console.log(
+        "================================"
+      );
+
+
+      // ======================================================
+      // 1. PREPARE RESULT
+      // ======================================================
+
+      const immediateResult = {
+
         transcript:
           result.transcript ||
-          previous?.transcript ||
           "",
 
         reminder:
           result.reminder ||
-          previous?.reminder ||
           "",
 
         tasks:
-          result.tasks ||
-          previous?.tasks ||
-          [],
-      })
-    );
+          Array.isArray(
+            result.tasks
+          )
+            ? result.tasks
+            : [],
+
+      };
 
 
-    if (!user) {
+      // ======================================================
+      // 2. SHOW RESULT IMMEDIATELY
+      // ======================================================
 
-      console.error(
-        "Cannot save tasks because no user is logged in."
+      setLatestResult(
+        immediateResult
       );
 
-      return [];
-    }
 
-
-    if (
-      !Array.isArray(
-        result.tasks
-      ) ||
-      result.tasks.length === 0
-    ) {
-
-      console.log(
-        "No tasks to save."
+      setTasks(
+        immediateResult.tasks
       );
 
-      return [];
 
-    }
+      // ======================================================
+      // 3. SAVE LOCAL RESULT
+      // ======================================================
+
+      if (user) {
+
+        saveLocalResult(
+
+          user.id,
+
+          immediateResult
+
+        );
+
+      }
 
 
-    try {
+      // ======================================================
+      // 4. CHECK LOGIN
+      // ======================================================
 
-      // ------------------------------------------------------
-      // Prepare database rows
-      // ------------------------------------------------------
+      if (!user) {
+
+        console.error(
+          "NO AUTHENTICATED USER"
+        );
+
+
+        alert(
+          "You are not logged in. Please login again."
+        );
+
+
+        return immediateResult.tasks;
+
+      }
+
+
+      // ======================================================
+      // 5. CHECK EXTRACTED TASKS
+      // ======================================================
+
+      if (
+        !Array.isArray(
+          immediateResult.tasks
+        ) ||
+        immediateResult.tasks.length === 0
+      ) {
+
+        console.log(
+          "No extracted tasks to save."
+        );
+
+
+        return [];
+
+      }
+
+
+      // ======================================================
+      // 6. PREPARE DATABASE ROWS
+      // ======================================================
 
       const rows =
-        result.tasks.map(
+        immediateResult.tasks.map(
           task => ({
 
             user_id:
@@ -338,6 +697,7 @@ function Application() {
             task:
               task.text ||
               task.title ||
+              task.task ||
               "Untitled task",
 
             start_time:
@@ -359,180 +719,243 @@ function Application() {
 
 
       console.log(
-        "Saving rows:",
+        "================================"
+      );
+
+      console.log(
+        "SAVING TASKS TO SUPABASE"
+      );
+
+      console.log(
         rows
       );
 
-
-      // ------------------------------------------------------
-      // INSERT
-      // ------------------------------------------------------
-
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("tasks")
-        .insert(
-          rows
-        )
-        .select(
-          "id, task, start_time, end_time, completed, created_at"
-        );
-
-
-      if (error) {
-
-        console.error(
-          "SUPABASE INSERT ERROR:",
-          error
-        );
-
-        alert(
-          `Could not save tasks:\n\n${error.message}`
-        );
-
-        return [];
-
-      }
-
-
-      const newTasks =
-        (data || []).map(
-          mapDatabaseTask
-        );
-
-
       console.log(
-        "New tasks saved:",
-        newTasks
+        "================================"
       );
 
 
-      // ------------------------------------------------------
-      // IMPORTANT:
-      // Merge new tasks with existing tasks.
-      // ------------------------------------------------------
+      // ======================================================
+      // 7. INSERT
+      // ======================================================
 
-      setTasks(
-        previous => {
+      try {
 
-          const existingIds =
-            new Set(
-              previous.map(
-                task => task.id
-              )
+        const {
+          data,
+          error,
+        } =
+          await supabase
+
+            .from("tasks")
+
+            .insert(
+              rows
+            )
+
+            .select(
+              "id, task, start_time, end_time, completed, created_at"
             );
 
 
-          const uniqueNewTasks =
-            newTasks.filter(
-              task =>
-                !existingIds.has(
-                  task.id
-                )
-            );
+        // ====================================================
+        // SUPABASE ERROR
+        // ====================================================
+
+        if (error) {
+
+          console.error(
+            "================================"
+          );
+
+          console.error(
+            "SUPABASE INSERT ERROR"
+          );
+
+          console.error(
+            error
+          );
+
+          console.error(
+            "================================"
+          );
 
 
-          return [
-            ...uniqueNewTasks,
-            ...previous,
-          ];
+          alert(
+
+            "SUPABASE ERROR\n\n" +
+
+            error.message +
+
+            "\n\nCode: " +
+
+            (
+              error.code ||
+              "N/A"
+            ) +
+
+            "\n\nDetails: " +
+
+            (
+              error.details ||
+              "N/A"
+            )
+
+          );
+
+
+          // --------------------------------------------------
+          // IMPORTANT:
+          // KEEP THE EXTRACTED TASK ON SCREEN
+          // --------------------------------------------------
+
+          return (
+            immediateResult.tasks
+          );
 
         }
-      );
 
 
-      setLatestResult(
-        previous => {
+        // ====================================================
+        // SUCCESS
+        // ====================================================
 
-          const previousTasks =
-            previous?.tasks || [];
+        console.log(
+          "================================"
+        );
+
+        console.log(
+          "TASKS SAVED SUCCESSFULLY"
+        );
+
+        console.log(
+          data
+        );
+
+        console.log(
+          "================================"
+        );
 
 
-          return {
+        // ====================================================
+        // CONVERT DATABASE ROWS
+        // ====================================================
+
+        const savedTasks =
+          (data || []).map(
+            mapDatabaseTask
+          );
+
+
+        // ====================================================
+        // DATABASE TASKS AVAILABLE
+        // ====================================================
+
+        if (
+          savedTasks.length > 0
+        ) {
+
+          const finalResult = {
 
             transcript:
-              result.transcript ||
-              previous?.transcript ||
-              "",
+              immediateResult.transcript,
 
             reminder:
-              result.reminder ||
-              previous?.reminder ||
-              "",
+              immediateResult.reminder,
 
-            tasks: [
-              ...newTasks,
-              ...previousTasks,
-            ],
+            tasks:
+              savedTasks,
 
           };
 
+
+          setTasks(
+            savedTasks
+          );
+
+
+          setLatestResult(
+            finalResult
+          );
+
+
+          saveLocalResult(
+
+            user.id,
+
+            finalResult
+
+          );
+
+
+          return savedTasks;
+
         }
-      );
 
 
-      // ------------------------------------------------------
-      // Return saved tasks to AppScreen
-      // ------------------------------------------------------
+        // ====================================================
+        // FALLBACK
+        // ====================================================
 
-      return newTasks;
+        return (
+          immediateResult.tasks
+        );
 
-    } catch (error) {
+      } catch (error) {
 
-      console.error(
-        "Unexpected Supabase save error:",
-        error
-      );
+        console.error(
+          "================================"
+        );
 
-      return [];
+        console.error(
+          "UNEXPECTED SUPABASE ERROR"
+        );
 
-    }
+        console.error(
+          error
+        );
 
-  };
+        console.error(
+          "================================"
+        );
+
+
+        alert(
+
+          "SUPABASE ERROR\n\n" +
+
+          (
+            error?.message ||
+            String(error)
+          )
+
+        );
+
+
+        // ----------------------------------------------------
+        // DO NOT DELETE THE TASK FROM UI
+        // ----------------------------------------------------
+
+        return (
+          immediateResult.tasks
+        );
+
+      }
+
+    };
 
 
   // ==========================================================
   // TOGGLE TASK
   // ==========================================================
 
-  const handleTaskToggle = async (
-    taskId,
-    completed
-  ) => {
+  const handleTaskToggle =
+    async (
+      taskId,
+      completed
+    ) => {
 
-    if (!user) {
-      return;
-    }
-
-
-    try {
-
-      const {
-        error,
-      } = await supabase
-        .from("tasks")
-        .update({
-          completed:
-            completed,
-        })
-        .eq(
-          "id",
-          taskId
-        )
-        .eq(
-          "user_id",
-          user.id
-        );
-
-
-      if (error) {
-
-        console.error(
-          "Failed to update task:",
-          error
-        );
+      if (!user) {
 
         return;
 
@@ -540,7 +963,7 @@ function Application() {
 
 
       // ------------------------------------------------------
-      // Update global task state
+      // UPDATE FRONTEND IMMEDIATELY
       // ------------------------------------------------------
 
       setTasks(
@@ -559,59 +982,127 @@ function Application() {
 
 
       // ------------------------------------------------------
-      // Update latest result
+      // UPDATE LATEST RESULT
       // ------------------------------------------------------
 
       setLatestResult(
         previous => {
 
           if (!previous) {
+
             return previous;
+
           }
 
 
-          return {
+          const updatedTasks =
+            (
+              previous.tasks ||
+              []
+            ).map(
+              task =>
+                task.id === taskId
+                  ? {
+                      ...task,
+                      done:
+                        completed,
+                    }
+                  : task
+            );
+
+
+          const updatedResult = {
 
             ...previous,
 
             tasks:
-              (previous.tasks || [])
-                .map(
-                  task =>
-                    task.id === taskId
-                      ? {
-                          ...task,
-                          done:
-                            completed,
-                        }
-                      : task
-                ),
+              updatedTasks,
 
           };
+
+
+          saveLocalResult(
+
+            user.id,
+
+            updatedResult
+
+          );
+
+
+          return updatedResult;
 
         }
       );
 
 
-    } catch (error) {
+      // ------------------------------------------------------
+      // UPDATE SUPABASE
+      // ------------------------------------------------------
 
-      console.error(
-        "Unexpected task update error:",
-        error
-      );
+      if (!taskId) {
 
-    }
+        return;
 
-  };
+      }
+
+
+      try {
+
+        const {
+          error,
+        } =
+          await supabase
+
+            .from("tasks")
+
+            .update({
+
+              completed:
+                completed,
+
+            })
+
+            .eq(
+              "id",
+              taskId
+            )
+
+            .eq(
+              "user_id",
+              user.id
+            );
+
+
+        if (error) {
+
+          console.error(
+            "TASK UPDATE ERROR:",
+            error
+          );
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "UNEXPECTED TASK UPDATE ERROR:",
+          error
+        );
+
+      }
+
+    };
 
 
   // ==========================================================
-  // LOAD SESSION
+  // LOAD AUTHENTICATED USER
   // ==========================================================
 
   useEffect(() => {
 
-    let mounted = true;
+    let mounted =
+      true;
 
 
     const loadSession =
@@ -629,7 +1120,7 @@ function Application() {
           if (error) {
 
             console.error(
-              "Session error:",
+              "SESSION ERROR:",
               error
             );
 
@@ -637,7 +1128,9 @@ function Application() {
 
 
           if (!mounted) {
+
             return;
+
           }
 
 
@@ -646,12 +1139,20 @@ function Application() {
             null;
 
 
+          console.log(
+            "CURRENT SUPABASE USER:",
+            currentUser
+          );
+
+
           setUser(
             currentUser
           );
 
 
-          if (currentUser) {
+          if (
+            currentUser
+          ) {
 
             await loadTasks(
               currentUser
@@ -671,16 +1172,20 @@ function Application() {
         } catch (error) {
 
           console.error(
-            "Session loading error:",
+            "SESSION LOAD ERROR:",
             error
           );
 
 
           if (mounted) {
 
-            setUser(null);
+            setUser(
+              null
+            );
 
-            setLoading(false);
+            setLoading(
+              false
+            );
 
           }
 
@@ -702,13 +1207,16 @@ function Application() {
       },
     } =
       supabase.auth.onAuthStateChange(
+
         async (
           _event,
           session
         ) => {
 
           if (!mounted) {
+
             return;
+
           }
 
 
@@ -717,12 +1225,21 @@ function Application() {
             null;
 
 
+          console.log(
+            "AUTH STATE:",
+            _event,
+            currentUser
+          );
+
+
           setUser(
             currentUser
           );
 
 
-          if (currentUser) {
+          if (
+            currentUser
+          ) {
 
             await loadTasks(
               currentUser
@@ -732,11 +1249,14 @@ function Application() {
 
             setTasks([]);
 
-            setLatestResult(null);
+            setLatestResult(
+              null
+            );
 
           }
 
         }
+
       );
 
 
@@ -753,7 +1273,7 @@ function Application() {
 
 
   // ==========================================================
-  // LOADING
+  // LOADING SCREEN
   // ==========================================================
 
   if (loading) {
@@ -787,42 +1307,62 @@ function Application() {
 
   if (!user) {
 
-    return <Auth />;
+    return (
+      <Auth />
+    );
 
   }
 
 
   // ==========================================================
-  // APP
+  // APPLICATION
   // ==========================================================
 
   return (
+
     <UserRoutes
-      user={user}
-      tasks={tasks}
-      latestResult={latestResult}
-      onResult={handleResult}
+
+      user={
+        user
+      }
+
+      tasks={
+        tasks
+      }
+
+      latestResult={
+        latestResult
+      }
+
+      onResult={
+        handleResult
+      }
+
       onTaskToggle={
         handleTaskToggle
       }
+
     />
+
   );
 
 }
 
 
 // ============================================================
-// ROOT
+// ROOT APP
 // ============================================================
 
 function App() {
 
   return (
+
     <BrowserRouter>
 
       <Application />
 
     </BrowserRouter>
+
   );
 
 }
